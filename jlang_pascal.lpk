@@ -9,7 +9,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Description Value="Component for interfacing with the J programming language (jsoftware.com)."/>
@@ -21,8 +21,19 @@
         <AddToUsesPkgSection Value="False"/>
         <UnitName Value="JLang"/>
       </Item>
+      <Item>
+        <Filename Value="jkvm.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="jkvm"/>
+      </Item>
     </Files>
     <RequiredPkgs>
+      <Item>
+        <PackageName Value="BGRABitmapPack"/>
+      </Item>
+      <Item>
+        <PackageName Value="LCLBase"/>
+      </Item>
       <Item>
         <PackageName Value="FCL"/>
       </Item>

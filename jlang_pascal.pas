@@ -8,13 +8,14 @@ unit jlang_pascal;
 interface
 
 uses
-  JLang, LazarusPackageIntf;
+  JLang, jkvm, LazarusPackageIntf;
 
 implementation
 
 procedure Register;
 begin
   RegisterUnit('JLang', @JLang.Register);
+  RegisterUnit('jkvm', @jkvm.Register);
 end;
 
 initialization
