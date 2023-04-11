@@ -52,8 +52,10 @@ begin
   end;
 
   // main program
-  // getdir(0,line); writeln('running in: ', line);
-  jlang.Init('c:/program files/j902/bin/j.dll'); // TODO: customize. (env variable?)
+  if not jlang.InitFromEnv then begin
+    WriteLn('Error: Missing or Invalid J_HOME evironment variable.');
+    Terminate;
+  end;
   fJL := TJLang.Create(self);
   fJL.OnJWr := @JWr;
   fJL.OnJRd := @JRd;
@@ -71,16 +73,15 @@ procedure TJDemoApp.JWr(s: PJS);
 begin WriteLn(s)
 end;
 
-var buf : string;
+var buf : RawByteString;
 function TJDemoApp.JRd(prompt: PJS): PJS;
-begin Write(prompt); ReadLn(buf); result := PJS(@buf);
+begin Write(prompt); ReadLn(buf); result := PJS(buf);
 end;
 
 function TJDemoApp.JWd(x: TJI; a: PJA; var res: PJA): TJI;
-begin
-  writeln('Wd(x=', x, '  k: ',a^.k, ' flag: ',a^.flag, ' m: ',a^.m,
-          ' t: ',a^.t, ' c: ',a^.c, ' n: ', a^.n, ' r: ',a^.r );
-  result := 0
+begin res := nil; result := 0;
+  writeln('Wd(x:', x, ' k:',a^.k, ' flag:',a^.flag, ' m:',a^.m,
+          ' t:',a^.t, ' c:',a^.c, ' n:', a^.n, ' r:', a^.r, ')' );
 end;
 
 constructor TJDemoApp.Create(TheOwner: TComponent);
@@ -91,7 +92,7 @@ end;
 
 destructor TJDemoApp.Destroy;
 begin
-  if Assigned(fJL) then fJL.Destroy;
+  if Assigned(fJL) then FreeAndNil(fJL);
   inherited Destroy;
 end;
 
