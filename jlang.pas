@@ -1,16 +1,17 @@
 {$mode ObjFPC}{$H+}
 unit JLang;
 
-{ Object Pascal Interface to the J Programming Language
+{ Object Pascal Interface to the J Programming Language.
   reference: https://code.jsoftware.com/wiki/Interfaces/JFEX }
-
 interface
 
 uses
   Classes, SysUtils, dynlibs;
 
 { call this to connect to J DLL }
-procedure Init(libpath:PChar);
+procedure Init(libpath:UnicodeString);
+{ same but use J_HOME environment variable }
+function InitFromEnv:boolean;
 
 { a hook for using the component in Lazarus }
 procedure Register;
@@ -38,12 +39,15 @@ type
     fJRdEvent : TJRdEvent;
     fJWrEvent : TJWrEvent;
     fJWdEvent : TJWdEvent;
+    procedure CheckJJ;
   protected
     function JGetLocale():PJS;
   public
     constructor Create(aOwner: TComponent); override;
     destructor Destroy; override;
-    function JDo(s:PJS):TJI;
+    procedure JInit;
+    procedure JFree;
+    function JDo(s:String):TJI;
     function JGetA(n:TJI; id:PJS):PJA;
     function JSetA(n:TJI; id:PJS; x:TJI; data:PJS):TJI;
   published
@@ -53,6 +57,11 @@ type
   end;
 
 implementation
+
+const
+  ERR_CALL_INIT:String = 'Call jlang.Init(path) first!';
+  ERR_CALL_JINIT:String = 'Call theJLang.JInit first!';
+  ERR_PREV_JINIT:String = 'This TJLang component is already initialized!';
 
 {-- J DLL Interface -----------------------------------------------------------}
 
@@ -67,21 +76,42 @@ type
   TJGetL = function(j:TJJ):PJS; stdcall;
   TJGetA = function(j:TJJ; n:TJI; name:PJS):PJA; stdcall;
   TJSetA = function(j:TJJ; n:TJI; name:PJS; x:TJI; data:PJS):TJI; stdcall;
-var
-  JLib   : TLibHandle;
-  jjInit  : TJInit;
-  jjDo   : TJDo;
-  jjSM   : TJSM;
-  jjFree : TJFree;
-  jjGetL : TJGetL;
-  jjGetA : TJGetA;
-  jjSetA : TJSetA;
 
-procedure Init(libpath:PChar);
+{ stubs for when we are not connected to a dll }
+{$WARN 5024 off : Parameter "$1" not used}
+function xjInit : PJS; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result:=nil end;
+procedure xjSM(j:TJJ; var cb:TJCBs); stdcall;
+begin raise EJError.Create(ERR_CALL_INIT) end;
+function xjDo(j:TJJ; s:PJS):TJI; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := -1 end;
+function xjFree(j:TJJ):TJI; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := -1 end;
+function xjGetL(j:TJJ):PJS; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := nil end;
+function xjGetA(j:TJJ; n:TJI; name:PJS):PJA; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := nil end;
+function xjSetA(j:TJJ; n:TJI; name:PJS; x:TJI; data:PJS):TJI; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := -1 end;
+{$WARN 5024 on : Parameter "$1" not used}
+
+var
+  jLib   : TLibHandle;
+  jHome  : UnicodeString = '';
+  jjInit : TJInit = @xjInit;
+  jjDo   : TJDo = @xjDo;
+  jjSM   : TJSM = @xjSM;
+  jjFree : TJFree = @xjFree;
+  jjGetL : TJGetL = @xjGetL;
+  jjGetA : TJGetA = @xjGetA;
+  jjSetA : TJSetA = @xjSetA;
+
+procedure Init(libpath:UnicodeString);
 begin
   JLib := LoadLibrary(libpath);
-  if JLib = NilHandle then raise EJError.Create('failed to load '+libpath)
+  if JLib = NilHandle then raise EJError.Create('failed to load '+String(libpath))
   else begin
+    jHome  := ExtractFilePath(libPath);
     jjInit := TJInit(GetProcedureAddress(JLib, 'JInit'));
     jjSM   := TJSM(GetProcedureAddress(JLib, 'JSM'));
     jjDo   := TJDo(GetProcedureAddress(JLib, 'JDo'));
@@ -89,7 +119,18 @@ begin
     jjGetA := TJGetA(GetProcedureAddress(JLib, 'JGetA'));
     jjSetA := TJSetA(GetProcedureAddress(JLib, 'JSetA'));
     jjGetL := TJGetL(GetProcedureAddress(JLib, 'JGetLocale'));
+    jjFree := TJFree(GetProcedureAddress(JLib, 'JFree'));
   end
+end;
+
+function InitFromEnv:Boolean;
+  var home, dllPath : UnicodeString;
+begin
+  home := GetEnvironmentVariable(UnicodeString('J_HOME'));
+  if home = '' then Exit(false);
+  dllPath := home + '/j.dll';
+  if not FileExists(dllPath) then Exit(false);
+  result := true; Init(dllPath)
 end;
 
 
@@ -139,34 +180,53 @@ end;
 {-- TJLang --------------------------------------------------------------------}
 
 constructor TJLang.Create(aOwner: TComponent);
-var rec:TJToPas; jcb:TJCBs=(@DoWr, @DoWd, @DoRd, Nil, Pointer(3));
 begin
-  if jlib = NilHandle then raise EJError.Create('Call jlang.Init(libPath) first!');
   inherited Create(aOwner);
-  fJJ := jjInit(); jjSM(fJJ, jcb);
-  rec.j := fJJ; rec.pas := self;
-  insert(rec, jToPas, length(jToPas))
+  if jlib <> NilHandle then JInit;
 end;
 
 destructor TJLang.Destroy;
-var i : integer;
-begin jjFree(fJJ);
-  for i := 0 to Length(jToPas) do if jToPas[i].pas = self then begin
-    Delete(jToPas, i,1); break
-  end;
+begin
+  if Assigned(fJJ) then JFree;
   inherited Destroy;
 end;
 
-function TJLang.JDo(s: PJS): TJI;
-begin result := jjDo(fJJ, s)
+procedure TJLang.JInit;
+  var rec:TJToPas; jcb:TJCBs=(@DoWr, @DoWd, @DoRd, Nil, Pointer(3));
+begin
+  if Assigned(fJJ) then raise EJError.Create(ERR_PREV_JINIT);
+  if jlib = NilHandle then raise EJError.Create(ERR_CALL_INIT);
+  fJJ := jjInit(); jjSM(fJJ, jcb);
+  rec.j := fJJ; rec.pas := self;
+  insert(rec, jToPas, length(jToPas));
+  JDo('BINPATH_z_ =: }:^:(''/''={:)' + QuotedStr(AnsiString(jHome)));
+  JDo('0!:0<BINPATH_z_,''/profile.ijs''');
+end;
+
+procedure TJLang.JFree;
+  var i : integer;
+begin
+  if not Assigned(fJJ) then Exit;  // !! maybe a warning here?
+  jjFree(fJJ);
+  for i := 0 to Length(jToPas) do if jToPas[i].pas = self then begin
+    Delete(jToPas, i,1); break
+  end;
+end;
+
+function TJLang.JDo(s: String): TJI;
+begin checkJJ; result := jjDo(fJJ, PJs(s))
+end;
+
+procedure TJLang.CheckJJ;
+begin if not Assigned(fJJ) then raise EJError.Create(ERR_CALL_JINIT);
 end;
 
 function TJLang.JGetLocale: PJS;
-begin result := jjGetL(fJJ)
+begin checkJJ; result := jjGetL(fJJ)
 end;
 
 function TJLang.JGetA(n: TJI; id: PJS): PJA;
-begin result := jjGetA(fJJ, n, id)
+begin checkJJ; result := jjGetA(fJJ, n, id)
 end;
 
 function TJLang.JSetA(n: TJI; id: PJS; x: TJI; data: PJS): TJI;
