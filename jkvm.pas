@@ -25,6 +25,8 @@ type
     fFontH, fCharW, fCharH: byte;
     fBmp, fTmp : TBGRABitmap;
     fFnt:Array[byte] of TBGRABitmap;
+    function GetGridH: byte;
+    function GetGridW: byte;
     procedure SetFontH(AValue: byte);
   protected
     procedure BoundsChanged; override;
@@ -36,6 +38,8 @@ type
   published
     property FontName:string read fFontName write fFontName;
     property FontH:byte read fFontH write SetFontH default 24;
+    property GridW:byte read GetGridW;
+    property GridH:byte read GetGridH;
     property Left; property Top;  property Width; property Height;
     property Align;
     property Anchors;
@@ -110,6 +114,14 @@ begin
   fTmp := TBGRABitmap.Create(fCharW,fCharH, BGRAPixelTransparent);
 end;
 
+function TJKVM.GetGridH: byte;
+begin result := Height div fCharH
+end;
+
+function TJKVM.GetGridW: byte;
+begin result := Width  div fCharW
+end;
+
 procedure TJKVM.BoundsChanged;
 begin
   inherited BoundsChanged;
@@ -121,8 +133,8 @@ procedure TJKVM.Paint;
   var i,j,gh,gw,gx,gy:Integer;
 begin
   fBmp.FillRect(0, 0, fBmp.Width, fBmp.Height, BGRABlack, dmSet);
-  gx := 0;{(Width  mod fCharW) div 2;} gw := Width  div fCharW;
-  gy := 0;{(Height mod fCharH) div 2;} gh := Height div fCharH;
+  gx := 0;{(Width  mod fCharW) div 2;} gw := GridW;
+  gy := 0;{(Height mod fCharH) div 2;} gh := GridH;
   for j := 0 to gh-1 do for i := 0 to gw-2 do begin
     drawChar(gx+i*fCharW, gy+j*fCharH, chr(33+byte(Random(94))),
              TColor(Random($ffffff)), BGRABlack); //TColor(Random($ffffff))); //);
