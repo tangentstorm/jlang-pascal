@@ -199,6 +199,7 @@ begin
   fJJ := jjInit(); jjSM(fJJ, jcb);
   rec.j := fJJ; rec.pas := self;
   insert(rec, jToPas, length(jToPas));
+  JDo('ARGV_z_=:,<''''');
   JDo('BINPATH_z_ =: }:^:(''/''={:)' + QuotedStr(AnsiString(jHome)));
   JDo('0!:0<BINPATH_z_,''/profile.ijs''');
 end;
