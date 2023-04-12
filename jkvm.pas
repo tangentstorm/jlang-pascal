@@ -35,6 +35,8 @@ type
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
     procedure DrawChar(x,y:integer; c:char; fg,bg:TColor);
+    procedure Clear(const bg:TColor=$333333);
+    procedure Rnd;
   published
     property FontName:string read fFontName write fFontName;
     property FontH:byte read fFontH write SetFontH default 24;
@@ -83,9 +85,8 @@ end;
 constructor TJKVM.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
-  fCharW:=15; fCharH:=28; fFontName := 'Consolas';
-  fBmp:= TBGRABitmap.Create(ClientWidth, ClientHeight, BGRAPixelTransparent);
-  SetFontH(24);
+  fCharW:=15; fCharH:=28; fFontName := 'Consolas'; SetFontH(24);
+  BoundsChanged; { to init fBmp }
 end;
 
 destructor TJKVM.Destroy;
@@ -127,19 +128,11 @@ begin
   inherited BoundsChanged;
   if Assigned(fBmp) then fBmp.free;
   fBmp:= TBGRABitmap.Create(ClientWidth, ClientHeight, BGRAPixelTransparent);
+  Clear;
 end;
 
 procedure TJKVM.Paint;
-  var i,j,gh,gw,gx,gy:Integer;
-begin
-  fBmp.FillRect(0, 0, fBmp.Width, fBmp.Height, BGRABlack, dmSet);
-  gx := 0;{(Width  mod fCharW) div 2;} gw := GridW;
-  gy := 0;{(Height mod fCharH) div 2;} gh := GridH;
-  for j := 0 to gh-1 do for i := 0 to gw-2 do begin
-    drawChar(gx+i*fCharW, gy+j*fCharH, chr(33+byte(Random(94))),
-             TColor(Random($ffffff)), BGRABlack); //TColor(Random($ffffff))); //);
-  end;
-  fBmp.Draw(Canvas, 0, 0, true);
+begin fBmp.Draw(Canvas, 0, 0, true);
 end;
 
 
@@ -155,6 +148,23 @@ begin
   end;
   fTmp.InvalidateBitmap;
   fBmp.PutImage(x, y, fTmp, dmDrawWithTransparency);
+end;
+
+procedure TJKVM.Clear(const bg: TColor);
+begin fBmp.FillRect(0, 0, fBmp.Width, fBmp.Height, bg, dmSet);
+end;
+
+{ Fill entire area with random colored characters }
+procedure TJKVM.Rnd;
+  var i,j,gh,gw,gx,gy:Integer;
+begin
+  Clear;
+  gx := 0;{(Width  mod fCharW) div 2;} gw := GridW;
+  gy := 0;{(Height mod fCharH) div 2;} gh := GridH;
+  for j := 0 to gh-1 do for i := 0 to gw-2 do begin
+    drawChar(gx+i*fCharW, gy+j*fCharH, chr(33+byte(Random(94))),
+             TColor(Random($ffffff)), BGRABlack); //TColor(Random($ffffff))); //);
+  end;
 end;
 
 end.
