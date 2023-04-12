@@ -18,11 +18,13 @@ procedure Register;
 
 type
   TJJ  = pointer;
-  TJI  = Int32;
+  TJI  = Int64;
   PJS  = PAnsiChar;
+  PJI  = ^TJI;
   PJA  = ^TJA;
   TJA  = record
-           k,flag,m,t,c,n,r,s : TJI;
+           k,flag,m,t,c,n,r : TJI;
+           s:pointer;
            v: array [0..0] of TJI; // really it's dynamically sized
          end;
 
@@ -48,7 +50,8 @@ type
     procedure JInit;
     procedure JFree;
     function JDo(s:String):TJI;
-    function JGetA(n:TJI; id:PJS):PJA;
+    function JGetM(id:PJS; out jtype,jrank:TJI; var jshape,jdata:PJI):TJI;
+    function JGetA(id:String):PJA;
     function JSetA(n:TJI; id:PJS; x:TJI; data:PJS):TJI;
   published
     property OnJRd : TJRdEvent read fJRdEvent write fJRdEvent;
@@ -74,6 +77,8 @@ type
   TJDo   = function(j:TJJ; s:PJS):TJI; stdcall;
   TJFree = function(j:TJJ):TJI; stdcall;
   TJGetL = function(j:TJJ):PJS; stdcall;
+  //  JGetM(JS jt, C* name, I* jtype, I* jrank, I* jshape, I* jdata)
+  TJGetM = function(j:TJJ; id:PJS; out jtype,jrank:TJI; var jshape,jdata:PJI):TJI; stdcall;
   TJGetA = function(j:TJJ; n:TJI; name:PJS):PJA; stdcall;
   TJSetA = function(j:TJJ; n:TJI; name:PJS; x:TJI; data:PJS):TJI; stdcall;
 
@@ -89,6 +94,8 @@ function xjFree(j:TJJ):TJI; stdcall;
 begin raise EJError.Create(ERR_CALL_INIT); result := -1 end;
 function xjGetL(j:TJJ):PJS; stdcall;
 begin raise EJError.Create(ERR_CALL_INIT); result := nil end;
+function xjGetM(j:TJJ; id:PJS; out jtype,jrank:TJI; var jshape,jdata:PJI):TJI; stdcall;
+begin raise EJError.Create(ERR_CALL_INIT); result := -1 end;
 function xjGetA(j:TJJ; n:TJI; name:PJS):PJA; stdcall;
 begin raise EJError.Create(ERR_CALL_INIT); result := nil end;
 function xjSetA(j:TJJ; n:TJI; name:PJS; x:TJI; data:PJS):TJI; stdcall;
@@ -103,6 +110,7 @@ var
   jjSM   : TJSM = @xjSM;
   jjFree : TJFree = @xjFree;
   jjGetL : TJGetL = @xjGetL;
+  jjGetM : TJGetM = @xjGetM;
   jjGetA : TJGetA = @xjGetA;
   jjSetA : TJSetA = @xjSetA;
 
@@ -116,6 +124,7 @@ begin
     jjSM   := TJSM(GetProcedureAddress(JLib, 'JSM'));
     jjDo   := TJDo(GetProcedureAddress(JLib, 'JDo'));
     jjFree := TJFree(GetProcedureAddress(JLib, 'JFree'));
+    jjGetM := TJGetM(GetProcedureAddress(JLib, 'JGetM'));
     jjGetA := TJGetA(GetProcedureAddress(JLib, 'JGetA'));
     jjSetA := TJSetA(GetProcedureAddress(JLib, 'JSetA'));
     jjGetL := TJGetL(GetProcedureAddress(JLib, 'JGetLocale'));
@@ -214,20 +223,24 @@ begin
   end;
 end;
 
+procedure TJLang.CheckJJ;
+begin if not Assigned(fJJ) then raise EJError.Create(ERR_CALL_JINIT);
+end;
+
 function TJLang.JDo(s: String): TJI;
 begin checkJJ; result := jjDo(fJJ, PJs(s))
 end;
 
-procedure TJLang.CheckJJ;
-begin if not Assigned(fJJ) then raise EJError.Create(ERR_CALL_JINIT);
+function TJLang.JGetM(id: PJS; out jtype, jrank:TJI; var jshape, jdata: PJI): TJI;
+begin CheckJJ; result := jjGetM(fJJ, id, jtype, jrank, jshape, jdata)
 end;
 
 function TJLang.JGetLocale: PJS;
 begin checkJJ; result := jjGetL(fJJ)
 end;
 
-function TJLang.JGetA(n: TJI; id: PJS): PJA;
-begin checkJJ; result := jjGetA(fJJ, n, id)
+function TJLang.JGetA(id: String): PJA;
+begin checkJJ; result := jjGetA(fJJ, length(id), PJS(id))
 end;
 
 function TJLang.JSetA(n: TJI; id: PJS; x: TJI; data: PJS): TJI;
