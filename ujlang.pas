@@ -1,5 +1,5 @@
 {$mode ObjFPC}{$H+}
-unit JLang;
+unit ujlang;
 
 { Object Pascal Interface to the J Programming Language.
   reference: https://code.jsoftware.com/wiki/Interfaces/JFEX }
@@ -16,6 +16,27 @@ function InitFromEnv:boolean;
 { a hook for using the component in Lazarus }
 procedure Register;
 
+{ j data type codes }
+const
+  JT_BIT  =     $1;  // boolean
+  JT_LIT  =     $2;  // literal
+  JT_INT  =     $4;  // integer
+  JT_FLT  =     $8;  // float
+  JT_CPX  =    $10;  // complex
+  JT_BOX  =    $20;  // boxed
+  JT_EXT  =    $40;  // boxed
+  JT_RAT  =    $80;  // extended
+  JT_SBIT =   $400;  // sparse boolean
+  JT_SLIT =   $800;  // sparse literal
+  JT_SINT =  $1000;  // sparse integer
+  JT_SFLT =  $2000;  // sparse float
+  JT_SCPX =  $4000;  // sparse complex
+  JT_SBOX =  $8000;  // sparse boxed
+  JT_SYM  = $10000;  // symbol
+  JT_UNI  = $20000;  // unicode
+  JT_UN4  = $40000;  // unicode4
+
+
 type
   TJJ  = pointer;
   TJI  = Int64;
@@ -24,13 +45,13 @@ type
   PJA  = ^TJA;
   TJA  = record
            k,flag,m,t,c,n,r : TJI;
-           s:pointer;
-           v: array [0..0] of TJI; // really it's dynamically sized
+           s: pointer; // pointer to shape
+           v: pointer; // pointer to value
          end;
 
   TJRdEvent = function(prompt:PJS):PJS of Object;
   TJWrEvent = procedure(s:PJS) of Object;
-  TJWdEvent = function(x:TJI; a:PJA; var res:PJA) : TJI of Object;
+  TJWdEvent = function(x:TJI; a:PJA; var res:PJA; const loc:string) : TJI of Object;
   EJError = class(Exception);
 
   { TJLang }
@@ -53,6 +74,7 @@ type
     function JGetM(id:PJS; out jtype,jrank:TJI; var jshape,jdata:PJI):TJI;
     function JGetA(id:String):PJA;
     function JSetA(n:TJI; id:PJS; x:TJI; data:PJS):TJI;
+    function JGetStr(jid:String):String;
   published
     property OnJRd : TJRdEvent read fJRdEvent write fJRdEvent;
     property OnJWr : TJWrEvent read fJWrEvent write fJWrEvent;
@@ -176,12 +198,14 @@ begin jl := j2p(jj);
   else result := Nil
 end;
 
-function DoWd(jj : TJJ; x:TJI; a:PJA; var res:PJA) : TJI; stdcall;
-var jl : TJLang;
+function DoWd(jj : TJJ; x:TJI; a:PJA; var res:PJA) {;loc:PJS)} : TJI; stdcall;
+var jl : TJLang; s:string='';
 begin jl := j2p(jj);
   { writeln('Wd: x=', x, '  k: ',a^.k, ' flag: ',a^.flag, ' m: ',a^.m,
      t: ',a^.t, ' c: ',a^.c, ' n: ',a^.n, ' r: ',a^.r ); }
-  if Assigned(jl.OnJWd) then result := jl.OnJWd(x, a, res)
+  // locale field doesn't seem to arrive. maybe it's new?
+  {if Assigned(loc) then s := string(loc) else s := '';}
+  if Assigned(jl.OnJWd) then result := jl.OnJWd(x, a, res, s)
   else result := 0
 end;
 
@@ -245,6 +269,20 @@ end;
 
 function TJLang.JSetA(n: TJI; id: PJS; x: TJI; data: PJS): TJI;
 begin result := jjSetA(fJJ, n, id, x, data)
+end;
+
+function TJLang.JGetStr(jid: String): String;
+  var i,jt,jr:TJI; js:PJI=nil; jd:PJI=nil; pc:PChar;
+begin
+  JGetM(PJS(jid), jt, jr, js, jd);
+  //if jt != JT_LIT end;
+  // assert jr = 1
+  result := '';
+  if js = nil then exit;
+  pc := PChar(jd);
+  for i := 0 to js^-1 do begin
+    result += pc^; inc(pc);
+  end;
 end;
 
 

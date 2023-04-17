@@ -9,7 +9,7 @@ program jConsoleApp;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF} // why? (auto-generated)
   Classes, SysUtils, CustApp,
-  jlang;
+  ujlang;
 
 type
 
@@ -22,7 +22,7 @@ type
     procedure DoRun; override;
     procedure JWr(s:PJS);
     function JRd(prompt:PJS):PJS;
-    function JWd(x:TJI; a:PJA; var res:PJA) : TJI;
+    function JWd(x:TJI; a:PJA; var res:PJA; const loc:String) : TJI;
   public
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
@@ -52,7 +52,7 @@ begin
   end;
 
   // main program
-  if not jlang.InitFromEnv then begin
+  if not ujlang.InitFromEnv then begin
     WriteLn('Error: Missing or Invalid J_HOME evironment variable.');
     Terminate;
   end;
@@ -78,7 +78,7 @@ function TJDemoApp.JRd(prompt: PJS): PJS;
 begin Write(prompt); ReadLn(buf); result := PJS(buf);
 end;
 
-function TJDemoApp.JWd(x: TJI; a: PJA; var res: PJA): TJI;
+function TJDemoApp.JWd(x: TJI; a: PJA; var res: PJA; const loc:String): TJI;
 begin res := nil; result := 0;
   writeln('Wd(x:', x, ' k:',a^.k, ' flag:',a^.flag, ' m:',a^.m,
           ' t:',a^.t, ' c:',a^.c, ' n:', a^.n, ' r:', a^.r, ')' );

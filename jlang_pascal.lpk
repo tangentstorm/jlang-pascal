@@ -16,15 +16,15 @@
     <License Value="(MIT License)"/>
     <Files>
       <Item>
-        <Filename Value="jlang.pas"/>
+        <Filename Value="ujlang.pas"/>
         <HasRegisterProc Value="True"/>
         <AddToUsesPkgSection Value="False"/>
-        <UnitName Value="JLang"/>
+        <UnitName Value="ujlang"/>
       </Item>
       <Item>
-        <Filename Value="jkvm.pas"/>
+        <Filename Value="ujkvm.pas"/>
         <HasRegisterProc Value="True"/>
-        <UnitName Value="jkvm"/>
+        <UnitName Value="ujkvm"/>
       </Item>
     </Files>
     <RequiredPkgs>

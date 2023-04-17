@@ -1,5 +1,5 @@
 {$mode ObjFPC}{$H+}
-unit jkvm;
+unit ujkvm;
 
 { This is a component that draws a text terminal with fixed width text
   and 24-bit color. It currently handles only ASCII characters and does
@@ -85,7 +85,7 @@ end;
 constructor TJKVM.Create(TheOwner: TComponent);
 begin
   inherited Create(TheOwner);
-  fCharW:=15; fCharH:=28; fFontName := 'Consolas'; SetFontH(24);
+  fCharW:=15; fCharH:=28; fFontName := 'Fira Mono'; SetFontH(24);
   BoundsChanged; { to init fBmp }
 end;
 
@@ -105,13 +105,14 @@ begin
     for i := 0 to 255 do fFnt[i].Free;
   end;
   for i := 0 to 255 do fFnt[i] := TBGRABitmap.Create(fCharW,fCharH, BGRAPixelTransparent);
-  for i := 32 to 127 do with fFnt[i] do begin
-    FontName := 'Consolas';
+  for i := 32 to 126 do with fFnt[i] do begin
+    FontName := fFontName;
     FontHeight := fFontH;
     FontQuality := fqSystemClearType;
     FontAntialias:= true;
     TextOut(1,0, chr(i), BGRAWhite);
   end;
+  fFnt[127].FillRect(0, 0, fCharW, fCharH div 2, BGRAWhite);
   fTmp := TBGRABitmap.Create(fCharW,fCharH, BGRAPixelTransparent);
 end;
 
@@ -139,7 +140,7 @@ end;
 procedure TJKVM.DrawChar(x, y: integer; c: char; fg, bg: TColor);
   var r,w: PBGRAPixel; i:word;
 begin
-  fBmp.FillRect(x, y, x+fCharW, y+fCharH, bg);
+  fBmp.FillRect(x*fCharW, y*fCharH, (x+1)*fCharW, (y+1)*fCharH, bg);
   // make a new colored char with alpha
   r := fFnt[byte(c)].Data; w := fTmp.Data;
   for i := fTmp.NbPixels-1 downto 0 do begin
@@ -147,7 +148,7 @@ begin
     inc(r); inc(w);
   end;
   fTmp.InvalidateBitmap;
-  fBmp.PutImage(x, y, fTmp, dmDrawWithTransparency);
+  fBmp.PutImage(x*fCharW, y*fCharH, fTmp, dmDrawWithTransparency);
 end;
 
 procedure TJKVM.Clear(const bg: TColor);
@@ -156,14 +157,11 @@ end;
 
 { Fill entire area with random colored characters }
 procedure TJKVM.Rnd;
-  var i,j,gh,gw,gx,gy:Integer;
+  var x,y:Integer;
 begin
   Clear;
-  gx := 0;{(Width  mod fCharW) div 2;} gw := GridW;
-  gy := 0;{(Height mod fCharH) div 2;} gh := GridH;
-  for j := 0 to gh-1 do for i := 0 to gw-2 do begin
-    drawChar(gx+i*fCharW, gy+j*fCharH, chr(33+byte(Random(94))),
-             TColor(Random($ffffff)), BGRABlack); //TColor(Random($ffffff))); //);
+  for y := 0 to GridH-1 do for x := 0 to GridW-2 do begin
+    DrawChar(x, y, chr(33+byte(Random(94))), Random($ffffff), BGRABlack);
   end;
 end;
 
