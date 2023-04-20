@@ -191,11 +191,13 @@ begin jl := j2p(jj);
   if Assigned(jl.OnJWr) then jl.OnJWr(s)
 end;
 
+const EMPTY = '';
+
 function DoRd(jj:TJJ; prompt:PJS):PJS; stdcall;
 var jl : TJLang;
 begin jl := j2p(jj);
   if Assigned(jl.OnJRd) then result := jl.OnJRd(prompt)
-  else result := Nil
+  else result := PJS(EMPTY)
 end;
 
 function DoWd(jj : TJJ; x:TJI; a:PJA; var res:PJA) {;loc:PJS)} : TJI; stdcall;
