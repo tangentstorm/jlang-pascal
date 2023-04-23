@@ -139,7 +139,8 @@ var
 procedure Init(libpath:UnicodeString);
 begin
   JLib := LoadLibrary(libpath);
-  if JLib = NilHandle then raise EJError.Create('failed to load '+String(libpath))
+  if JLib = NilHandle then
+    raise EJError.Create('failed to load '+String(libpath)+': '+GetLoadErrorStr)
   else begin
     jHome  := ExtractFilePath(libPath);
     jjInit := TJInit(GetProcedureAddress(JLib, 'JInit'));
